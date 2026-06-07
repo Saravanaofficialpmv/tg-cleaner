@@ -13,7 +13,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import init_db
 from app.routes import auth, dashboard, cleanup
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -24,23 +23,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# ── Lifespan ──────────────────────────────────────────────────────────────────
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """Startup / shutdown hooks."""
-    logger.info("Initialising database…")
-    await init_db()
-    logger.info("Database ready.")
-    yield
-    logger.info("Shutting down.")
-
-
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(
     title="Telegram Cleaner",
     description="Clean your Telegram groups and channels with ease.",
     version="1.0.0",
-    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -52,9 +39,6 @@ app.add_middleware(
 )
 
 # ── Static files & templates ──────────────────────────────────────────────────
-os.makedirs("static", exist_ok=True)
-os.makedirs("templates", exist_ok=True)
-
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
