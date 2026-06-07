@@ -590,7 +590,11 @@
     // ── SSE Stream ─────────────────────────────────────────
     function beginSSEStream() {
       const delay = document.getElementById('cleanupDelay')?.value || 2.0;
-      const url = `/api/cleanup/stream?session_id=${session.session_id}&delay=${delay}`;
+      let url = `/api/cleanup/stream?session_id=${session.session_id}&delay=${delay}`;
+      if (session.session_string) url += `&session_string=${encodeURIComponent(session.session_string)}`;
+      if (session.api_id) url += `&api_id=${session.api_id}`;
+      if (session.api_hash) url += `&api_hash=${encodeURIComponent(session.api_hash)}`;
+      if (session.phone) url += `&phone=${encodeURIComponent(session.phone)}`;
       eventSource = new EventSource(url);
 
       eventSource.onmessage = (e) => {
@@ -745,7 +749,11 @@
 
     // ── Helpers ────────────────────────────────────────────
     function exportKeepList(format) {
-      const url = `/api/dashboard/export?session_id=${session.session_id}&format=${format}`;
+      let url = `/api/dashboard/export?session_id=${session.session_id}&format=${format}`;
+      if (session.session_string) url += `&session_string=${encodeURIComponent(session.session_string)}`;
+      if (session.api_id) url += `&api_id=${session.api_id}`;
+      if (session.api_hash) url += `&api_hash=${encodeURIComponent(session.api_hash)}`;
+      if (session.phone) url += `&phone=${encodeURIComponent(session.phone)}`;
       window.location.href = url;
     }
 

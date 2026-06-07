@@ -102,6 +102,11 @@ async def verify_otp(
         logger.error(f"Sign-in error: {e}")
         raise HTTPException(status_code=500, detail="Authentication failed. Please try again.")
 
+    # Get session details to return to the client for stateless auto-healing
+    session = await sess_service.get_user_session(db=db, session_id=body.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session placeholder not found.")
+
     # Persist the real session string
     await sess_service.update_session_string(
         db=db,
@@ -111,6 +116,10 @@ async def verify_otp(
 
     return {
         "session_id": body.session_id,
+        "session_string": auth_result["session_string"],
+        "api_id": session.api_id,
+        "api_hash": session.api_hash,
+        "phone": session.phone,
         "user": {
             "first_name": auth_result.get("first_name", ""),
             "username": auth_result.get("username", ""),

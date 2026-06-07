@@ -34,10 +34,22 @@ const API_BASE = '/api';
 
 async function apiFetch(path, options = {}) {
   const url = `${API_BASE}${path}`;
-  const defaults = {
-    headers: { 'Content-Type': 'application/json' },
+  const session = getSession();
+  const headers = { 'Content-Type': 'application/json' };
+
+  if (session) {
+    if (session.session_id) headers['X-TG-Session-Id'] = session.session_id;
+    if (session.session_string) headers['X-TG-Session-String'] = session.session_string;
+    if (session.api_id) headers['X-TG-Api-Id'] = session.api_id;
+    if (session.api_hash) headers['X-TG-Api-Hash'] = session.api_hash;
+    if (session.phone) headers['X-TG-Phone'] = session.phone;
+  }
+
+  const config = {
+    ...options,
+    headers: { ...headers, ...options.headers }
   };
-  const config = { ...defaults, ...options };
+
   if (config.body && typeof config.body === 'object') {
     config.body = JSON.stringify(config.body);
   }
