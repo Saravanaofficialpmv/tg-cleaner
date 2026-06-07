@@ -116,7 +116,7 @@ ENV/
 .DS_Store
 
 # Telegram Cleaner specific ignores
-**/database/
+/database/
 **/*.db
 **/*.sqlite3
 **/*.session
