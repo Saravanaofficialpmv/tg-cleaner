@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Telegram Cleaner</title>
+  <link rel="stylesheet" href="/static/css/main.css" />
+  <style>
+    .chat-link-icon {
+      font-size: 11px;
+      color: var(--accent-blue);
+      text-decoration: none;
+      margin-left: 6px;
+      opacity: 0.6;
+      transition: var(--transition);
+      display: inline-flex;
+      align-items: center;
+      vertical-align: middle;
+    }
+    .chat-link-icon:hover {
+      opacity: 1;
+      color: var(--accent-cyan);
+      transform: scale(1.1);
+    }
+    .ratio-bar-container {
+      background: rgba(239, 68, 68, 0.15);
+      border-radius: 100px;
+      height: 8px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      width: 100%;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .ratio-bar-kept {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-green), #059669);
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      width: 0%;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    }
+    .select-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-mesh"></div>
+
+  <!-- ── Top Header ───────────────────────────────────────── -->
+  <header class="top-header">
+    <div class="header-logo">
+      <div class="logo-icon-css"></div>
+      <h2>TG <span style="color: var(--accent-orange); font-weight: 700;">Cleaner</span></h2>
+    </div>
+
+    <nav class="header-nav">
+      <a class="nav-item active" href="/dashboard">
+        Dashboard
+      </a>
+      <a class="nav-item" href="/cleanup">
+        Cleanup
+        <span class="nav-badge" id="cleanupBadge" style="display:none"></span>
+      </a>
+      <button class="nav-item-btn" onclick="exportKeepList('csv')">
+        Export CSV
+      </button>
+      <button class="nav-item-btn" onclick="exportKeepList('xlsx')">
+        Export Excel
+      </button>
+    </nav>
+
+    <div class="header-user">
+      <p id="sidebarUser">Loading…</p>
+      <button class="btn-logout" onclick="logout()">
+        Logout
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Main ─────────────────────────────────────────────── -->
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Dashboard</h1>
+      <p>Manage and clean your Telegram groups & channels</p>
+    </div>
+
+    <div class="content-area">
+      <div class="dashboard-grid">
+        <!-- LEFT COLUMN -->
+        <div class="left-panel">
+          <!-- Welcome and stats summary row -->
+          <div class="pill-stats-row">
+            <div class="pill-progress-group">
+              <div class="pill-stat dark">
+                <span>Total: <strong id="statGroups">0</strong></span>
+              </div>
+              <div class="pill-stat yellow">
+                <span>To Remove: <strong id="statRemove">0</strong></span>
+              </div>
+              <div class="pill-stat stripes-pill">
+                <span>Kept: <strong id="statKept">0</strong></span>
+              </div>
+            </div>
+            <div class="metrics-text-group">
+              <div class="metric-text-item">
+                <span class="metric-text-val" id="statChannels">0</span>
+                <span class="metric-text-lbl">Channels</span>
+              </div>
+              <div class="metric-text-item">
+                <span class="metric-text-val" id="statUsers">0</span>
+                <span class="metric-text-lbl">Personal</span>
+              </div>
+              <div class="metric-text-item">
+                <span class="metric-text-val" id="statBots">0</span>
+                <span class="metric-text-lbl">Bots</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mid Panel Widgets (Profile, Bar Chart, Circular Gauge) -->
+          <div class="left-panel-grid">
+            <!-- Widget 1: Profile -->
+            <div class="glass-card profile-widget">
+              <div class="profile-avatar-container">
+                <div class="profile-avatar-placeholder" id="profileInitials">TG</div>
+              </div>
+              <div class="profile-name" id="profileFullName">Telegram User</div>
+              <div class="profile-username" id="profileSub">@client</div>
+              <span class="profile-badge">Active Client</span>
+            </div>
+
+            <!-- Widget 2: Chat Distribution (Bar Chart) -->
+            <div class="glass-card bar-chart-card">
+              <h3>Chat Distribution</h3>
+              <div class="card-subtitle">Breakdown by type</div>
+              <div class="bar-chart-container">
+                <div class="bar-chart-bars">
+                  <div class="chart-bar-wrapper">
+                    <div class="chart-bar-fill" id="barGroups" style="height: 6%;"></div>
+                    <span class="bar-lbl">GRP</span>
+                  </div>
+                  <div class="chart-bar-wrapper">
+                    <div class="chart-bar-fill" id="barChannels" style="height: 6%;"></div>
+                    <span class="bar-lbl">CHN</span>
+                  </div>
+                  <div class="chart-bar-wrapper">
+                    <div class="chart-bar-fill highlight" id="barUsers" style="height: 6%;"></div>
+                    <span class="bar-lbl">PER</span>
+                  </div>
+                  <div class="chart-bar-wrapper">
+                    <div class="chart-bar-fill muted" id="barBots" style="height: 6%;"></div>
+                    <span class="bar-lbl">BOT</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Widget 3: Circular Ratio Gauge -->
+            <div class="glass-card gauge-card">
+              <div>
+                <h3>Cleanup Ratio</h3>
+                <div class="card-subtitle" id="pctKept">0% Kept Safe</div>
+              </div>
+              <div class="circular-progress-wrapper">
+                <svg viewBox="0 0 100 100" class="circular-progress-svg">
+                  <circle cx="50" cy="50" r="40" class="circle-bg"></circle>
+                  <circle cx="50" cy="50" r="40" class="circle-fg" id="ratioCircle"></circle>
+                </svg>
+                <div class="circular-progress-text">
+                  <span class="pct-val" id="pctRemoveCircle">0%</span>
+                  <span class="pct-lbl" id="pctRemove">To Remove</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Main Chat Panel (Search, Filters, Chat List) -->
+          <div class="glass-card" style="padding:24px;" id="chatPanel">
+            <div class="search-bar-wrapper">
+              <div class="search-input-wrapper" style="flex:1;">
+                <span class="search-icon">🔍</span>
+                <input
+                  type="text"
+                  class="input search-input"
+                  id="searchInput"
+                  placeholder="Search groups and channels…"
+                  oninput="filterChats()"
+                />
+              </div>
+              
+              <div class="select-wrapper" style="width:180px;">
+                <select class="select" id="sortSelect" onchange="filterChats()">
+                  <option value="last_activity_desc">Newest Activity</option>
+                  <option value="last_activity_asc">Oldest Activity</option>
+                  <option value="name_asc">Name A-Z</option>
+                  <option value="members_desc">Members (High-Low)</option>
+                  <option value="unread_desc">Unread Count</option>
+                </select>
+              </div>
+
+              <div class="select-wrapper" style="width:180px;">
+                <select class="select" id="inactiveThresholdSelect" onchange="updateInactiveThreshold(this.value)" title="Inactivity Threshold">
+                  <option value="7">7+ Days Inactive</option>
+                  <option value="14">14+ Days Inactive</option>
+                  <option value="30" selected>30+ Days Inactive</option>
+                  <option value="90">90+ Days Inactive</option>
+                  <option value="180">180+ Days Inactive</option>
+                </select>
+              </div>
+
+              <button class="btn btn-secondary" onclick="refreshChats()">Refresh</button>
+              <button class="btn btn-primary" onclick="window.location.href='/cleanup'">
+                Clean Up
+              </button>
+            </div>
+
+            <div class="filter-bar" id="filterBar">
+              <button class="filter-chip active" data-filter="all" onclick="setFilter('all', this)">All</button>
+              <button class="filter-chip" data-filter="group" onclick="setFilter('group', this)">Groups</button>
+              <button class="filter-chip" data-filter="channel" onclick="setFilter('channel', this)">Channels</button>
+              <button class="filter-chip" data-filter="supergroup" onclick="setFilter('supergroup', this)">Supergroups</button>
+              <button class="filter-chip" data-filter="bot" onclick="setFilter('bot', this)">Bots</button>
+              <button class="filter-chip" data-filter="user" onclick="setFilter('user', this)">Personal</button>
+              <button class="filter-chip" data-filter="muted" onclick="setFilter('muted', this)">Muted</button>
+              <button class="filter-chip" data-filter="unread" onclick="setFilter('unread', this)">Unread</button>
+              <button class="filter-chip" data-filter="inactive" onclick="setFilter('inactive', this)">Inactive</button>
+              <button class="filter-chip" data-filter="archived" onclick="setFilter('archived', this)">Archived</button>
+              <button class="filter-chip" data-filter="kept" onclick="setFilter('kept', this)">Kept</button>
+              <button class="filter-chip" data-filter="remove" onclick="setFilter('remove', this)">To Remove</button>
+            </div>
+
+            <div class="section-header">
+              <span class="section-title">Chats</span>
+              <span class="section-count" id="chatCount">Loading…</span>
+            </div>
+
+            <!-- Chat List -->
+            <div id="chatList" style="position:relative;min-height:200px;">
+              <div class="loading-overlay" id="loadingOverlay">
+                <div class="spinner" style="width:32px;height:32px;border-width:3px;"></div>
+                <span>Fetching your chats…</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="right-panel">
+          <!-- Widget 4: Dark Quick Actions Card -->
+          <div class="dark-action-card">
+            <h3>Quick Actions Checklist</h3>
+            <div class="card-subtitle">Bulk updates</div>
+            <div class="dark-action-list">
+              <div class="dark-action-item" onclick="quickAction('muted')">
+                <div class="dark-action-left">
+                  <span>Mark muted for removal</span>
+                </div>
+                <div class="dark-action-tick">✓</div>
+              </div>
+              <div class="dark-action-item" onclick="quickAction('inactive')">
+                <div class="dark-action-left">
+                  <span id="quickActionInactiveLabel">Mark inactive (30+ days)</span>
+                </div>
+                <div class="dark-action-tick">✓</div>
+              </div>
+              <div class="dark-action-item" onclick="quickAction('unread0')">
+                <div class="dark-action-left">
+                  <span>Zero-unread channels</span>
+                </div>
+                <div class="dark-action-tick">✓</div>
+              </div>
+              <div class="dark-action-item" onclick="quickAction('archived')">
+                <div class="dark-action-left">
+                  <span>Mark archived for removal</span>
+                </div>
+                <div class="dark-action-tick">✓</div>
+              </div>
+              <div class="dark-action-item" onclick="quickAction('bots')">
+                <div class="dark-action-left">
+                  <span>Mark bots for removal</span>
+                </div>
+                <div class="dark-action-tick">✓</div>
+              </div>
+              <div class="dark-action-item" onclick="quickAction('personal')">
+                <div class="dark-action-left">
+                  <span>Mark personal for removal</span>
+                </div>
+                <div class="dark-action-tick">✓</div>
+              </div>
+              <div class="dark-action-item" onclick="selectAll(false)">
+                <div class="dark-action-left">
+                  <span>Deselect all (remove all)</span>
+                </div>
+                <div class="dark-action-tick">✓</div>
+              </div>
+              <div class="dark-action-item active" onclick="selectAll(true)">
+                <div class="dark-action-left">
+                  <span>Keep all (select everything)</span>
+                </div>
+                <div class="dark-action-tick">✓</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Widget 5: Accordion Session Details -->
+          <div class="detail-accordion">
+            <h3>Session Guard</h3>
+            <div class="detail-list">
+              <div class="detail-item">
+                <span class="detail-label">Status</span>
+                <span class="detail-val text-success">Active Session</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Protection</span>
+                <span class="detail-val text-info">Rate Limits On</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Database Cache</span>
+                <span class="detail-val">SQLite Local</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">API Version</span>
+                <span class="detail-val">Telethon v1.36</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast-container"></div>
+
+  <script src="/static/js/utils.js"></script>
+  <script>
+    // ── State ──────────────────────────────────────────────
+    let allChats = [];
+    let currentFilter = 'all';
+    let currentSearch = '';
+    let session = null;
+    let inactiveDaysThreshold = 30;
+
+    // ── Init ───────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', async () => {
+      session = requireAuth('/');
+      if (!session) return;
+
+      // Show user
+      const user = session.user;
+      const displayUser = user?.first_name ? `@${user.username || user.first_name}` : 'Logged in';
+      document.getElementById('sidebarUser').textContent = displayUser;
+      
+      const initialsEl = document.getElementById('profileInitials');
+      if (initialsEl) initialsEl.textContent = getInitials(user?.first_name || 'TG');
+      
+      const nameEl = document.getElementById('profileFullName');
+      if (nameEl) nameEl.textContent = (user?.first_name || 'Telegram') + (user?.last_name ? ' ' + user.last_name : ' User');
+      
+      const subEl = document.getElementById('profileSub');
+      if (subEl) subEl.textContent = user?.username ? `@${user.username}` : (user?.phone || 'Connected');
+
+      await loadChats();
+    });
+
+    // ── Load chats ─────────────────────────────────────────
+    async function loadChats(refresh = false) {
+      const overlay = document.getElementById('loadingOverlay');
+      overlay.style.display = 'flex';
+
+      if (refresh) {
+        try {
+          await apiFetch('/dashboard/refresh', {
+            method: 'POST',
+            body: { session_id: session.session_id },
+          });
+        } catch (e) {
+          showToast('Could not clear cache: ' + e.message, 'warn');
+        }
+      }
+
+      try {
+        const data = await apiFetch(`/dashboard/chats?session_id=${session.session_id}`);
+        allChats = data.chats || [];
+        renderChats();
+        updateStats();
+        if (data.cached) {
+          showToast(`Loaded ${allChats.length} chats from cache.`, 'info');
+        } else {
+          showToast(`Fetched ${allChats.length} chats from Telegram.`, 'success');
+        }
+      } catch (err) {
+        showToast('Error loading chats: ' + err.message, 'error');
+        document.getElementById('chatList').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">⚠️</div>
+            <p>${escapeHtml(err.message)}</p>
+          </div>`;
+      } finally {
+        overlay.style.display = 'none';
+      }
+    }
+
+    function refreshChats() { loadChats(true); }
+
+    // ── Render ─────────────────────────────────────────────
+    function renderChats() {
+      const filtered = getFilteredChats();
+      const container = document.getElementById('chatList');
+
+      document.getElementById('chatCount').textContent =
+        `${filtered.length} of ${allChats.length}`;
+
+      if (!filtered.length) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <p>No chats match your current filter.</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(chat => chatItemHTML(chat)).join('');
+    }
+
+    function chatItemHTML(chat) {
+      const initials = getInitials(chat.name);
+      const avatarStyle = `background: ${avatarColors(chat.name)};`;
+      const keepBtnClass = chat.is_kept ? 'kept' : '';
+      const itemClass = chat.is_kept ? 'kept' : '';
+      const lastAct = formatDate(chat.last_activity);
+      const members = chat.member_count ? `👥 ${formatNumber(chat.member_count)}` : '';
+      const unreadBadge = chat.unread_count > 0
+        ? `<span class="badge badge-unread">${chat.unread_count}</span>` : '';
+      const mutedBadge = chat.is_muted
+        ? '<span class="badge badge-muted">Muted</span>' : '';
+      const archivedBadge = chat.is_archived
+        ? '<span class="badge badge-archived">Archived</span>' : '';
+      const keptBadge = chat.is_kept
+        ? '<span class="badge badge-kept">Kept</span>' : '';
+
+      const linkHTML = chat.username
+        ? `<a href="https://t.me/${chat.username}" target="_blank" rel="noopener" class="chat-link-icon" title="Preview in Telegram" onclick="event.stopPropagation()">🔗</a>`
+        : '';
+
+      return `
+        <div class="chat-item ${itemClass}" data-id="${chat.chat_id}" onclick="toggleKeep(${chat.chat_id})">
+          <div class="chat-avatar" style="${avatarStyle}">
+            ${initials}
+          </div>
+          <div class="chat-info">
+            <div class="chat-name">${escapeHtml(chat.name)}${linkHTML}</div>
+            <div class="chat-meta">
+              ${members}
+              ${members && lastAct ? '·' : ''}
+              <span>${lastAct}</span>
+            </div>
+          </div>
+          <div class="chat-badges">
+            ${chatTypeBadge(chat.chat_type)}
+            ${unreadBadge}
+            ${mutedBadge}
+            ${archivedBadge}
+            ${keptBadge}
+          </div>
+          <button
+            class="chat-keep-btn ${keepBtnClass}"
+            onclick="event.stopPropagation(); toggleKeep(${chat.chat_id})"
+            title="${chat.is_kept ? 'Remove from keep list' : 'Add to keep list'}"
+          >${chat.is_kept ? '💚' : '○'}</button>
+        </div>`;
+    }
+
+    // ── Toggle keep ────────────────────────────────────────
+    async function toggleKeep(chatId) {
+      const chat = allChats.find(c => c.chat_id === chatId);
+      if (!chat) return;
+      chat.is_kept = !chat.is_kept;
+      renderChats();
+      updateStats();
+
+      try {
+        await apiFetch('/dashboard/keep', {
+          method: 'POST',
+          body: {
+            session_id: session.session_id,
+            chat_ids: [chatId],
+            keep: chat.is_kept,
+          },
+        });
+      } catch (err) {
+        // Revert on failure
+        chat.is_kept = !chat.is_kept;
+        renderChats();
+        showToast('Failed to update: ' + err.message, 'error');
+      }
+    }
+
+    // ── Bulk keep ──────────────────────────────────────────
+    async function setKeepBulk(chatIds, keep) {
+      chatIds.forEach(id => {
+        const c = allChats.find(c => c.chat_id === id);
+        if (c) c.is_kept = keep;
+      });
+      renderChats();
+      updateStats();
+
+      try {
+        await apiFetch('/dashboard/keep', {
+          method: 'POST',
+          body: { session_id: session.session_id, chat_ids: chatIds, keep },
+        });
+        showToast(`Updated ${chatIds.length} chats.`, 'success');
+      } catch (err) {
+        showToast('Bulk update failed: ' + err.message, 'error');
+      }
+    }
+
+    function selectAll(keep) {
+      const ids = allChats.map(c => c.chat_id);
+      setKeepBulk(ids, keep);
+    }
+
+    // ── Quick actions ──────────────────────────────────────
+    function quickAction(type) {
+      let ids = [];
+      if (type === 'muted')    ids = allChats.filter(c => c.is_muted).map(c => c.chat_id);
+      if (type === 'inactive') ids = allChats.filter(c => isInactive(c.last_activity, inactiveDaysThreshold)).map(c => c.chat_id);
+      if (type === 'unread0')  ids = allChats.filter(c => c.chat_type === 'channel' && c.unread_count === 0).map(c => c.chat_id);
+      if (type === 'archived') ids = allChats.filter(c => c.is_archived).map(c => c.chat_id);
+      if (type === 'bots')     ids = allChats.filter(c => c.chat_type === 'bot').map(c => c.chat_id);
+      if (type === 'personal') ids = allChats.filter(c => c.chat_type === 'user').map(c => c.chat_id);
+
+      if (!ids.length) {
+        showToast('No chats match this criteria.', 'info');
+        return;
+      }
+      setKeepBulk(ids, false);
+      showToast(`Marked ${ids.length} chats for removal.`, 'warn');
+    }
+
+    function updateInactiveThreshold(val) {
+      inactiveDaysThreshold = parseInt(val);
+      const label = document.getElementById('quickActionInactiveLabel');
+      if (label) {
+        label.textContent = `Mark inactive (${inactiveDaysThreshold}+ days)`;
+      }
+      renderChats();
+      updateStats();
+    }
+
+    // ── Filters & Search ───────────────────────────────────
+    function getFilteredChats() {
+      let filtered = allChats.filter(chat => {
+        const q = currentSearch.toLowerCase();
+        if (q && !chat.name.toLowerCase().includes(q)) return false;
+
+        switch (currentFilter) {
+          case 'group':      return chat.chat_type === 'group';
+          case 'channel':    return chat.chat_type === 'channel';
+          case 'supergroup': return ['supergroup','megagroup'].includes(chat.chat_type);
+          case 'bot':        return chat.chat_type === 'bot';
+          case 'user':       return chat.chat_type === 'user';
+          case 'muted':      return chat.is_muted;
+          case 'unread':     return chat.unread_count > 0;
+          case 'inactive':   return isInactive(chat.last_activity, inactiveDaysThreshold);
+          case 'archived':   return chat.is_archived;
+          case 'kept':       return chat.is_kept;
+          case 'remove':     return !chat.is_kept;
+          default:           return true;
+        }
+      });
+
+      // Apply sorting
+      const sortBy = document.getElementById('sortSelect')?.value || 'last_activity_desc';
+      filtered.sort((a, b) => {
+        if (sortBy === 'name_asc') {
+          return a.name.localeCompare(b.name);
+        }
+        if (sortBy === 'members_desc') {
+          return (b.member_count || 0) - (a.member_count || 0);
+        }
+        if (sortBy === 'unread_desc') {
+          return (b.unread_count || 0) - (a.unread_count || 0);
+        }
+        if (sortBy === 'last_activity_asc') {
+          if (!a.last_activity) return 1;
+          if (!b.last_activity) return -1;
+          return new Date(a.last_activity) - new Date(b.last_activity);
+        }
+        if (sortBy === 'last_activity_desc') {
+          if (!a.last_activity) return 1;
+          if (!b.last_activity) return -1;
+          return new Date(b.last_activity) - new Date(a.last_activity);
+        }
+        return 0;
+      });
+
+      return filtered;
+    }
+
+    // ── Filter Chips ───────────────────────────────────────
+    function setFilter(filter, btn) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+      btn.classList.add('active');
+      renderChats();
+    }
+
+    function filterChats() {
+      currentSearch = document.getElementById('searchInput').value;
+      renderChats();
+    }
+
+    // ── Stats ──────────────────────────────────────────────
+    function updateStats() {
+      const groups   = allChats.filter(c => ['group','supergroup','megagroup'].includes(c.chat_type)).length;
+      const channels = allChats.filter(c => c.chat_type === 'channel').length;
+      const bots     = allChats.filter(c => c.chat_type === 'bot').length;
+      const users    = allChats.filter(c => c.chat_type === 'user').length;
+      const kept     = allChats.filter(c => c.is_kept).length;
+      const remove   = allChats.filter(c => !c.is_kept).length;
+
+      const total = allChats.length;
+      document.getElementById('statGroups').textContent   = total;
+      document.getElementById('statChannels').textContent = channels;
+      document.getElementById('statBots').textContent     = bots;
+      document.getElementById('statUsers').textContent    = users;
+      document.getElementById('statKept').textContent     = kept;
+      document.getElementById('statRemove').textContent   = remove;
+
+      const pctKept = total > 0 ? Math.round((kept / total) * 100) : 0;
+      const pctRemove = total > 0 ? (100 - pctKept) : 0;
+      
+      const pctKeptEl = document.getElementById('pctKept');
+      const pctRemoveEl = document.getElementById('pctRemove');
+      
+      if (pctKeptEl) pctKeptEl.textContent = `${pctKept}% Kept Safe`;
+      if (pctRemoveEl) pctRemoveEl.textContent = `To Remove (${remove})`;
+      
+      // Update circular SVG gauge
+      const circleEl = document.getElementById('ratioCircle');
+      if (circleEl) {
+        const offset = 251.2 - (251.2 * (pctRemove / 100));
+        circleEl.style.strokeDashoffset = offset;
+      }
+      const pctCircleEl = document.getElementById('pctRemoveCircle');
+      if (pctCircleEl) pctCircleEl.textContent = `${pctRemove}%`;
+
+      // Update vertical bar chart
+      const groupsPct = total > 0 ? (groups / total) * 100 : 0;
+      const channelsPct = total > 0 ? (channels / total) * 100 : 0;
+      const usersPct = total > 0 ? (users / total) * 100 : 0;
+      const botsPct = total > 0 ? (bots / total) * 100 : 0;
+
+      const barGroups = document.getElementById('barGroups');
+      const barChannels = document.getElementById('barChannels');
+      const barUsers = document.getElementById('barUsers');
+      const barBots = document.getElementById('barBots');
+
+      if (barGroups) barGroups.style.height = `${Math.max(groupsPct, 6)}%`;
+      if (barChannels) barChannels.style.height = `${Math.max(channelsPct, 6)}%`;
+      if (barUsers) barUsers.style.height = `${Math.max(usersPct, 6)}%`;
+      if (barBots) barBots.style.height = `${Math.max(botsPct, 6)}%`;
+
+      const badge = document.getElementById('cleanupBadge');
+      if (remove > 0) {
+        badge.textContent = remove;
+        badge.style.display = '';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    // ── Export ─────────────────────────────────────────────
+    function exportKeepList(format) {
+      const url = `/api/dashboard/export?session_id=${session.session_id}&format=${format}`;
+      window.location.href = url;
+    }
+
+    // ── Logout ─────────────────────────────────────────────
+    async function logout() {
+      try {
+        await apiFetch('/auth/logout', {
+          method: 'POST',
+          body: { session_id: session.session_id },
+        });
+      } catch (e) { /* ignore */ }
+      clearSession();
+      window.location.href = '/';
+    }
+  </script>
+</body>
+</html>

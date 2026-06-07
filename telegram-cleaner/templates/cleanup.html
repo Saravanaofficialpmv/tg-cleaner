@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cleanup — Telegram Cleaner</title>
+  <link rel="stylesheet" href="/static/css/main.css" />
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <style>
+    .preview-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      margin-bottom: 6px;
+    }
+
+    .preview-item .pi-name {
+      flex: 1;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .warning-box {
+      background: rgba(245, 158, 11, 0.08);
+      border: 1px solid rgba(245, 158, 11, 0.25);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #fcd34d;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .cleanup-summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .summary-box {
+      background: var(--bg-glass);
+      border: 1px solid var(--border-glass);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      text-align: center;
+    }
+
+    .summary-box .sb-val {
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .summary-box .sb-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .progress-section {
+      margin: 20px 0;
+    }
+
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .current-action {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-top: 8px;
+      min-height: 20px;
+      font-style: italic;
+    }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .result-card {
+      background: var(--bg-glass);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-glass);
+      padding: 20px;
+      text-align: center;
+    }
+
+    .result-card.success-card { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.06); }
+    .result-card.fail-card    { border-color: rgba(239,68,68,0.3);  background: rgba(239,68,68,0.06); }
+
+    .result-card .rc-val   { font-size: 40px; font-weight: 700; }
+    .result-card .rc-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+    .preview-list-container {
+      max-height: 360px;
+      overflow-y: auto;
+    }
+
+    .cleanup-steps {
+      list-style: none;
+      margin-bottom: 24px;
+    }
+
+    .cleanup-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      font-size: 14px;
+      border-bottom: 1px solid var(--border-glass);
+    }
+
+    .cleanup-step:last-child { border-bottom: none; }
+
+    .step-num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: rgba(74,144,226,0.15);
+      color: var(--accent-blue);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .running-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: rgba(74,144,226,0.1);
+      border: 1px solid rgba(74,144,226,0.3);
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--accent-blue);
+    }
+
+    /* Range Slider Styling */
+    input[type=range]#cleanupDelay {
+      -webkit-appearance: none;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.08);
+      height: 6px;
+      border-radius: 3px;
+      outline: none;
+      transition: background 0.3s;
+      margin: 10px 0;
+    }
+    input[type=range]#cleanupDelay::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+      transition: transform 0.1s;
+    }
+    input[type=range]#cleanupDelay::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+    input[type=range]#cleanupDelay::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+      transition: transform 0.1s;
+    }
+    input[type=range]#cleanupDelay::-moz-range-thumb:hover {
+      transform: scale(1.2);
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-mesh"></div>
+
+  <!-- ── Top Header ───────────────────────────────────────── -->
+  <header class="top-header">
+    <div class="header-logo">
+      <div class="logo-icon-css"></div>
+      <h2>TG <span style="color: var(--accent-orange); font-weight: 700;">Cleaner</span></h2>
+    </div>
+
+    <nav class="header-nav">
+      <a class="nav-item" href="/dashboard">
+        Dashboard
+      </a>
+      <a class="nav-item active" href="/cleanup">
+        Cleanup
+      </a>
+      <button class="nav-item-btn" onclick="exportKeepList('csv')">
+        Export CSV
+      </button>
+      <button class="nav-item-btn" onclick="exportKeepList('xlsx')">
+        Export Excel
+      </button>
+    </nav>
+
+    <div class="header-user">
+      <p id="sidebarUser">Loading…</p>
+      <button class="btn-logout" onclick="logout()">
+        Logout
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Main ─────────────────────────────────────────────── -->
+  <main class="main-content">
+    <div class="page-header">
+      <h1>Cleanup Engine</h1>
+      <p>Review and execute your cleanup plan</p>
+    </div>
+
+    <div class="content-area">
+      <!-- ── Phase 1: Preview ──────────────────────────── -->
+      <div id="phasePreview">
+        <div class="warning-box">
+          <span>
+            <strong>Important:</strong> Review the groups, channels, and bots below before proceeding.
+            Leaving groups/channels and blocking/deleting bots is permanent.
+            Make sure your keep list is correct on the Dashboard first.
+          </span>
+        </div>
+
+        <div class="glass-card" style="padding:24px;margin-bottom:20px;" id="previewCard">
+          <div class="loading-overlay" id="previewLoader">
+            <div class="spinner" style="width:32px;height:32px;border-width:3px;"></div>
+            <span>Loading preview…</span>
+          </div>
+
+          <div class="cleanup-summary" id="cleanupSummary">
+            <div class="summary-box">
+              <div class="sb-val text-info" id="sumTotal">—</div>
+              <div class="sb-label">Total Chats</div>
+            </div>
+            <div class="summary-box">
+              <div class="sb-val text-danger" id="sumLeave">—</div>
+              <div class="sb-label">Will Leave</div>
+            </div>
+            <div class="summary-box">
+              <div class="sb-val text-success" id="sumKeep">—</div>
+              <div class="sb-label">Will Keep</div>
+            </div>
+          </div>
+
+          <div class="section-header" id="leaveListHeader" style="display:none;">
+            <span class="section-title">Chats to Leave</span>
+            <span class="section-count" id="leaveListCount"></span>
+          </div>
+
+          <div class="preview-list-container" id="previewList"></div>
+
+          <div id="noChatsMsg" class="empty-state hidden">
+            <p>Nothing to clean up! All chats are in your keep list.</p>
+            <a href="/dashboard" class="btn btn-primary" style="margin-top:16px;">← Back to Dashboard</a>
+          </div>
+        </div>
+
+        <!-- ── Settings Card ────────────────────────────── -->
+        <div class="glass-card hidden" style="padding:24px;margin-bottom:20px;" id="settingsCard">
+          <h3 style="margin-bottom:16px;font-size:16px;">Cleanup Settings</h3>
+          <div class="form-group" style="margin-bottom:0;">
+            <div class="input-group">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                <label class="input-label" style="text-transform:none;font-weight:600;font-size:14px;color:var(--text-primary);">Delay between removals:</label>
+                <span id="delayVal" style="font-weight:600;color:var(--accent-blue);font-size:14px;">2.0 seconds</span>
+              </div>
+              <input type="range" id="cleanupDelay" min="1.0" max="15.0" step="0.5" value="2.0" oninput="updateDelayDisplay(this.value)" />
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-muted);margin-top:6px;">
+                <span>1.0s (Fast)</span>
+                <span>5.0s</span>
+                <span>10.0s</span>
+                <span>15.0s (Safest)</span>
+              </div>
+              <p class="text-xs text-muted" style="margin-top:10px;font-size:12px;color:var(--text-secondary);line-height:1.4;">
+                <strong>Note:</strong> Telegram enforces strict limits on leaving channels/groups. Adding a longer delay (e.g. 2-5 seconds or more) significantly reduces the risk of hitting a <code>FloodWait</code> error or temporary account restriction.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card" style="padding:24px;">
+          <h3 style="margin-bottom:16px;font-size:16px;">How cleanup works</h3>
+          <ul class="cleanup-steps">
+            <li class="cleanup-step">
+              <div class="step-num">1</div>
+              <div>All chats <em>not</em> in your keep list will be left one by one.</div>
+            </li>
+            <li class="cleanup-step">
+              <div class="step-num">2</div>
+              <div id="delayStepText">A 2.0-second delay between each action prevents Telegram rate limits (FloodWait).</div>
+            </li>
+            <li class="cleanup-step">
+              <div class="step-num">3</div>
+              <div>You can stop the cleanup at any time with the Emergency Stop button.</div>
+            </li>
+            <li class="cleanup-step">
+              <div class="step-num">4</div>
+              <div>Results (success/failed) are shown in real-time and saved to the log.</div>
+            </li>
+          </ul>
+
+          <div class="flex gap-3">
+            <button class="btn btn-secondary" onclick="window.location.href='/dashboard'">
+              ← Edit Keep List
+            </button>
+            <button class="btn btn-success" id="exportBeforeBtn" onclick="exportKeepList('csv')">
+              Export Keep List
+            </button>
+            <button class="btn btn-danger" id="startCleanupBtn" onclick="confirmAndStart()" disabled>
+              Start Cleanup
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Phase 2: Running ──────────────────────────── -->
+      <div id="phaseRunning" class="hidden">
+        <div class="glass-card" style="padding:28px;margin-bottom:20px;">
+          <div class="flex items-center justify-between mb-4">
+            <h3 style="font-size:18px;">Cleanup in progress…</h3>
+            <span class="running-indicator">
+              <span class="spinner" style="width:14px;height:14px;border-width:2px;"></span>
+              Running
+            </span>
+          </div>
+
+          <div class="progress-section">
+            <div class="progress-info">
+              <span id="progressText">0 / 0</span>
+              <span id="progressPct">0%</span>
+            </div>
+            <div class="progress-bar-wrapper">
+              <div class="progress-bar" id="progressBar" style="width:0%"></div>
+            </div>
+            <div class="current-action" id="currentAction">Starting…</div>
+          </div>
+
+          <div class="flex gap-3 mt-4">
+            <div style="flex:1;">
+              <div class="text-xs text-muted mb-2">SUCCESS</div>
+              <div style="font-size:32px;font-weight:700;color:var(--accent-green);" id="liveSuccess">0</div>
+            </div>
+            <div style="flex:1;">
+              <div class="text-xs text-muted mb-2">FAILED</div>
+              <div style="font-size:32px;font-weight:700;color:var(--accent-red);" id="liveFailed">0</div>
+            </div>
+            <div style="flex:1; display:flex;align-items:flex-end;justify-content:flex-end;">
+              <button class="btn btn-danger" id="stopBtn" onclick="stopCleanup()">
+                Emergency Stop
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass-card" style="padding:24px;">
+          <div class="section-header">
+            <span class="section-title">Live Log</span>
+          </div>
+          <div class="log-list" id="liveLog"></div>
+        </div>
+      </div>
+
+      <!-- ── Phase 3: Done ────────────────────────────── -->
+      <div id="phaseDone" class="hidden">
+        <div class="glass-card" style="padding:36px;text-align:center;margin-bottom:20px;">
+          <div style="font-size:64px;margin-bottom:16px;display:none;" id="doneEmoji"></div>
+          <h2 style="font-size:26px;margin-bottom:8px;" id="doneTitle">Cleanup Complete!</h2>
+          <p class="text-muted" style="margin-bottom:28px;" id="doneSubtitle">Your Telegram is now cleaner.</p>
+
+          <div class="result-grid">
+            <div class="result-card success-card">
+              <div class="rc-val text-success" id="finalSuccess">0</div>
+              <div class="rc-label">Successfully left</div>
+            </div>
+            <div class="result-card fail-card">
+              <div class="rc-val text-danger" id="finalFailed">0</div>
+              <div class="rc-label">Failed / Skipped</div>
+            </div>
+          </div>
+
+          <div class="flex gap-3 mt-4" style="justify-content:center;">
+            <button class="btn btn-secondary" onclick="window.location.href='/dashboard'">
+              ← Back to Dashboard
+            </button>
+            <button class="btn btn-primary" onclick="resetAndReload()">
+              Run Again
+            </button>
+          </div>
+        </div>
+
+        <div class="glass-card" style="padding:24px;">
+          <div class="section-header">
+            <span class="section-title">Cleanup Log</span>
+          </div>
+          <div class="log-list" id="finalLog"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Confirm Modal -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal">
+      <h2>Confirm Cleanup</h2>
+      <p id="confirmText">You are about to leave <strong>X</strong> groups and channels. This action cannot be undone. Are you sure?</p>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="hideModal('confirmModal')">Cancel</button>
+        <button class="btn btn-danger" onclick="startCleanup()">Yes, Start Cleanup</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container"></div>
+
+  <script src="/static/js/utils.js"></script>
+  <script>
+    let session = null;
+    let previewData = null;
+    let eventSource = null;
+    let successCount = 0;
+    let failedCount = 0;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      session = requireAuth('/');
+      if (!session) return;
+
+      const user = session.user;
+      document.getElementById('sidebarUser').textContent =
+        user?.first_name ? `@${user.username || user.first_name}` : 'Logged in';
+
+      await loadPreview();
+    });
+
+    // ── Preview ────────────────────────────────────────────
+    async function loadPreview() {
+      const loader = document.getElementById('previewLoader');
+      loader.style.display = 'flex';
+
+      try {
+        previewData = await apiFetch('/cleanup/preview', {
+          method: 'POST',
+          body: { session_id: session.session_id },
+        });
+
+        document.getElementById('sumTotal').textContent = previewData.total;
+        document.getElementById('sumLeave').textContent = previewData.to_leave;
+        document.getElementById('sumKeep').textContent  = previewData.to_keep;
+
+        if (previewData.to_leave === 0) {
+          document.getElementById('noChatsMsg').classList.remove('hidden');
+          document.getElementById('cleanupSummary').style.display = 'none';
+          document.getElementById('settingsCard').classList.add('hidden');
+        } else {
+          document.getElementById('leaveListHeader').style.display = '';
+          document.getElementById('leaveListCount').textContent = `${previewData.to_leave} chats`;
+          renderPreviewList(previewData.leave_list);
+          document.getElementById('settingsCard').classList.remove('hidden');
+          document.getElementById('startCleanupBtn').disabled = false;
+        }
+
+      } catch (err) {
+        showToast('Failed to load preview: ' + err.message, 'error');
+      } finally {
+        loader.style.display = 'none';
+      }
+    }
+
+    function renderPreviewList(list) {
+      const container = document.getElementById('previewList');
+      if (!list.length) return;
+      container.innerHTML = list.map(item => `
+        <div class="preview-item" id="prev-item-${item.chat_id}">
+          <input
+            type="checkbox"
+            checked
+            class="preview-checkbox"
+            style="cursor:pointer; width:16px; height:16px; accent-color: var(--accent-red);"
+            onchange="togglePreviewChat(${item.chat_id}, this)"
+          />
+          <span style="font-size:16px;">${iconForType(item.chat_type)}</span>
+          <span class="pi-name" id="prev-name-${item.chat_id}">${escapeHtml(item.name)}</span>
+          ${chatTypeBadge(item.chat_type)}
+        </div>
+      `).join('');
+    }
+
+    async function togglePreviewChat(chatId, checkbox) {
+      const isChecked = checkbox.checked;
+      const keep = !isChecked;
+      
+      const itemEl = document.getElementById(`prev-item-${chatId}`);
+      const nameEl = document.getElementById(`prev-name-${chatId}`);
+      
+      if (keep) {
+        if (itemEl) itemEl.style.opacity = '0.6';
+        if (nameEl) nameEl.style.textDecoration = 'line-through';
+      } else {
+        if (itemEl) itemEl.style.opacity = '1';
+        if (nameEl) nameEl.style.textDecoration = 'none';
+      }
+
+      try {
+        await apiFetch('/dashboard/keep', {
+          method: 'POST',
+          body: {
+            session_id: session.session_id,
+            chat_ids: [chatId],
+            keep: keep,
+          },
+        });
+
+        if (keep) {
+          previewData.to_leave = Math.max(0, previewData.to_leave - 1);
+          previewData.to_keep++;
+        } else {
+          previewData.to_leave++;
+          previewData.to_keep = Math.max(0, previewData.to_keep - 1);
+        }
+
+        document.getElementById('sumLeave').textContent = previewData.to_leave;
+        document.getElementById('sumKeep').textContent  = previewData.to_keep;
+        document.getElementById('leaveListCount').textContent = `${previewData.to_leave} chats`;
+
+        const startBtn = document.getElementById('startCleanupBtn');
+        if (startBtn) {
+          startBtn.disabled = previewData.to_leave === 0;
+        }
+
+      } catch (err) {
+        checkbox.checked = !isChecked;
+        if (!isChecked) {
+          if (itemEl) itemEl.style.opacity = '1';
+          if (nameEl) nameEl.style.textDecoration = 'none';
+        } else {
+          if (itemEl) itemEl.style.opacity = '0.6';
+          if (nameEl) nameEl.style.textDecoration = 'line-through';
+        }
+        showToast('Failed to update: ' + err.message, 'error');
+      }
+    }
+
+    function iconForType(t) {
+      return { group: '👥', channel: '📢', supergroup: '💬', megagroup: '💬', bot: '🤖', user: '👤' }[t] || '💬';
+    }
+
+    // ── Confirm + start ────────────────────────────────────
+    function confirmAndStart() {
+      if (!previewData || previewData.to_leave === 0) return;
+      document.getElementById('confirmText').innerHTML =
+        `You are about to leave/block <strong>${previewData.to_leave}</strong> groups, channels, and bots.
+         This action <strong>cannot be undone</strong>. Make sure you've exported your keep list if needed.`;
+      showModal('confirmModal');
+    }
+
+    function startCleanup() {
+      hideModal('confirmModal');
+      // Switch to running phase
+      document.getElementById('phasePreview').classList.add('hidden');
+      document.getElementById('phaseRunning').classList.remove('hidden');
+      successCount = 0;
+      failedCount = 0;
+      beginSSEStream();
+    }
+
+    // ── SSE Stream ─────────────────────────────────────────
+    function beginSSEStream() {
+      const delay = document.getElementById('cleanupDelay')?.value || 2.0;
+      const url = `/api/cleanup/stream?session_id=${session.session_id}&delay=${delay}`;
+      eventSource = new EventSource(url);
+
+      eventSource.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        handleStreamEvent(data);
+      };
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        if (!document.getElementById('phaseDone').classList.contains('hidden')) return;
+        appendLog('Connection lost. Cleanup may have stopped.', 'failed');
+        showToast('Stream connection lost.', 'error');
+      };
+    }
+
+    function handleStreamEvent(data) {
+      switch (data.type) {
+        case 'start':
+          updateProgress(0, data.total);
+          break;
+
+        case 'progress':
+          updateProgress(data.current, data.total);
+          const status = data.status === 'left' ? 'success'
+                       : data.status === 'failed' ? 'failed' : 'info';
+
+          if (data.status === 'leaving') {
+            document.getElementById('currentAction').textContent =
+              `Leaving: ${data.chat_name}…`;
+            return;
+          }
+
+          if (data.status === 'left') {
+            successCount++;
+            document.getElementById('liveSuccess').textContent = successCount;
+            appendLog(`✓ Left: ${data.chat_name}`, 'success');
+          } else if (data.status === 'failed') {
+            failedCount++;
+            document.getElementById('liveFailed').textContent = failedCount;
+            appendLog(`✕ Failed: ${data.chat_name}${data.error ? ' — ' + data.error : ''}`, 'failed');
+          }
+          break;
+
+        case 'done':
+        case 'stopped':
+          eventSource?.close();
+          showDonePhase(data);
+          break;
+
+        case 'error':
+          eventSource?.close();
+          appendLog('Error: ' + data.message, 'failed');
+          showToast('Cleanup error: ' + data.message, 'error');
+          break;
+      }
+    }
+
+    function updateProgress(current, total) {
+      const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+      document.getElementById('progressText').textContent = `${current} / ${total}`;
+      document.getElementById('progressPct').textContent  = `${pct}%`;
+      document.getElementById('progressBar').style.width  = `${pct}%`;
+    }
+
+    function appendLog(message, type = 'info') {
+      const logEl = document.getElementById('liveLog');
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = message;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // ── Stop ───────────────────────────────────────────────
+    async function stopCleanup() {
+      document.getElementById('stopBtn').disabled = true;
+      try {
+        await apiFetch('/cleanup/stop', {
+          method: 'POST',
+          body: { session_id: session.session_id },
+        });
+        showToast('Stop signal sent. Finishing current operation…', 'warn');
+      } catch (e) {
+        showToast('Could not send stop signal.', 'error');
+      }
+    }
+
+    // ── Done ───────────────────────────────────────────────
+    function showDonePhase(data) {
+      document.getElementById('phaseRunning').classList.add('hidden');
+      document.getElementById('phaseDone').classList.remove('hidden');
+
+      const total   = data.total || 0;
+      const success = data.success || successCount;
+      const failed  = data.failed  || failedCount;
+
+      document.getElementById('finalSuccess').textContent = success;
+      document.getElementById('finalFailed').textContent  = failed;
+
+      if (data.type === 'stopped') {
+        document.getElementById('doneTitle').textContent  = 'Cleanup Stopped';
+        document.getElementById('doneSubtitle').textContent = `Processed ${data.processed || 0} of ${total} chats.`;
+      } else {
+        document.getElementById('doneTitle').textContent  = 'Cleanup Complete!';
+        document.getElementById('doneSubtitle').textContent =
+          `Left ${success} chats${failed > 0 ? `, ${failed} failed` : ''}.`;
+          
+        if (failed === 0 && success > 0) {
+          if (typeof confetti === 'function') {
+            confetti({
+              particleCount: 150,
+              spread: 80,
+              origin: { y: 0.6 }
+            });
+          }
+        }
+      }
+
+      // Load full log
+      loadCleanupLogs();
+      showToast(`Cleanup done: ${success} left, ${failed} failed.`, 'success');
+    }
+
+    async function loadCleanupLogs() {
+      try {
+        const data = await apiFetch(`/cleanup/logs?session_id=${session.session_id}`);
+        const logEl = document.getElementById('finalLog');
+        if (!data.logs.length) {
+          logEl.innerHTML = '<div class="empty-state"><p>No log entries found.</p></div>';
+          return;
+        }
+        logEl.innerHTML = data.logs.slice(0, 50).map(l => `
+          <div class="log-entry ${l.action === 'left' ? 'success' : 'failed'}">
+            ${l.action === 'left' ? '✓' : '✕'} ${escapeHtml(l.chat_name)}
+            ${l.error_message ? `<span class="text-muted"> — ${escapeHtml(l.error_message)}</span>` : ''}
+          </div>
+        `).join('');
+      } catch (e) {
+        console.error('Could not load logs:', e);
+      }
+    }
+
+    function resetAndReload() {
+      window.location.reload();
+    }
+
+    function updateDelayDisplay(val) {
+      document.getElementById('delayVal').textContent = parseFloat(val).toFixed(1) + ' seconds';
+      const delayText = parseFloat(val).toFixed(1) + '-second';
+      document.getElementById('delayStepText').innerHTML = `A ${delayText} delay between each action prevents Telegram rate limits (FloodWait).`;
+    }
+
+    // ── Helpers ────────────────────────────────────────────
+    function exportKeepList(format) {
+      const url = `/api/dashboard/export?session_id=${session.session_id}&format=${format}`;
+      window.location.href = url;
+    }
+
+    async function logout() {
+      try {
+        await apiFetch('/auth/logout', {
+          method: 'POST',
+          body: { session_id: session.session_id },
+        });
+      } catch (e) { /* ignore */ }
+      clearSession();
+      window.location.href = '/';
+    }
+  </script>
+</body>
+</html>

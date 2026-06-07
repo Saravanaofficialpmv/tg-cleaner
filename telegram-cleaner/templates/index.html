@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Telegram Cleaner — Login</title>
+  <link rel="stylesheet" href="/static/css/main.css" />
+  <style>
+    .credential-hint {
+      background: rgba(255, 204, 77, 0.08);
+      border: 1px solid rgba(255, 204, 77, 0.3);
+      border-radius: var(--radius-md);
+      padding: 12.5px 16px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+    .credential-hint a {
+      color: var(--text-primary);
+      text-decoration: underline;
+      font-weight: 600;
+    }
+    .otp-input {
+      text-align: center;
+      letter-spacing: 0.4em;
+      font-size: 22px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .otp-info {
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 20px;
+    }
+    .resend-link {
+      color: var(--text-primary);
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .feature-list {
+      list-style: none;
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .feature-list li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .feature-list li::before {
+      content: '✓';
+      color: var(--accent-green);
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .security-note {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 24px;
+      text-align: center;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-mesh"></div>
+
+  <div class="login-container" style="position:relative;z-index:1;">
+    <div class="login-card glass-card">
+      <div class="login-header">
+        <div class="login-logo-css"></div>
+        <h1>TG <span style="color: var(--accent-orange);">Cleaner</span></h1>
+        <p>Clean your groups and channels effortlessly</p>
+      </div>
+
+      <!-- Step indicators -->
+      <div class="step-indicator" id="stepIndicator">
+        <div class="step-dot active" id="step1dot"></div>
+        <div class="step-line"></div>
+        <div class="step-dot" id="step2dot"></div>
+        <div class="step-line"></div>
+        <div class="step-dot" id="step3dot"></div>
+      </div>
+
+      <!-- Step 1: Credentials -->
+      <div id="step1">
+        <div class="credential-hint">
+          Get your API credentials from
+          <a href="https://my.telegram.org/apps" target="_blank" rel="noopener">my.telegram.org/apps</a>.
+          Create an app and copy the <strong>API ID</strong> and <strong>API Hash</strong>.
+        </div>
+
+        <div class="form-group">
+          <div class="input-group">
+            <label class="input-label">API ID</label>
+            <input type="number" id="apiId" class="input" placeholder="12345678" autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="input-group">
+            <label class="input-label">API Hash</label>
+            <input type="text" id="apiHash" class="input" placeholder="a1b2c3d4e5f6..." autocomplete="off" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="input-group">
+            <label class="input-label">Phone Number</label>
+            <input type="tel" id="phone" class="input" placeholder="+91 9876543210" autocomplete="off" />
+          </div>
+        </div>
+
+        <button class="btn btn-primary w-full" id="sendCodeBtn" onclick="sendCode()">
+          Send OTP →
+        </button>
+
+        <ul class="feature-list">
+          <li>Leave unwanted groups & channels in bulk</li>
+          <li>Smart filters: muted, inactive, unread</li>
+          <li>Keep list to protect important chats</li>
+          <li>Real-time progress with emergency stop</li>
+        </ul>
+      </div>
+
+      <!-- Step 2: OTP -->
+      <div id="step2" class="hidden">
+        <div class="otp-info" id="otpInfo">
+          Enter the code sent to your Telegram account.
+        </div>
+
+        <div class="form-group">
+          <div class="input-group">
+            <label class="input-label">Verification Code</label>
+            <input
+              type="text"
+              id="otpCode"
+              class="input otp-input"
+              placeholder="· · · · ·"
+              maxlength="6"
+              autocomplete="one-time-code"
+            />
+          </div>
+        </div>
+
+        <div id="passwordGroup" class="form-group hidden">
+          <div class="input-group">
+            <label class="input-label">2FA Password</label>
+            <input type="password" id="twoFaPassword" class="input" placeholder="Your cloud password" />
+          </div>
+        </div>
+
+        <button class="btn btn-primary w-full" id="verifyBtn" onclick="verifyCode()">
+          Verify & Login →
+        </button>
+
+        <div style="text-align:center;margin-top:12px;">
+          <span class="text-muted text-sm">Wrong number? </span>
+          <span class="resend-link text-sm" onclick="goBack()">Go back</span>
+        </div>
+      </div>
+
+      <!-- Step 3: Success -->
+      <div id="step3" class="hidden" style="text-align:center;padding:20px 0;">
+        <div style="font-size:56px;margin-bottom:16px;">🎉</div>
+        <h2 style="font-size:22px;margin-bottom:8px;">You're in!</h2>
+        <p class="text-muted text-sm" style="margin-bottom:24px;">
+          Redirecting to your dashboard…
+        </p>
+        <div class="spinner" style="margin:0 auto;width:28px;height:28px;"></div>
+      </div>
+
+      <div class="security-note">
+        🔒 Your credentials are never stored. Only a Telethon session string is saved locally.
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="/static/js/utils.js"></script>
+  <script>
+    // Redirect if already logged in, and pre-fill credentials
+    (() => {
+      const session = getSession();
+      if (session?.session_id) {
+        window.location.href = '/dashboard';
+        return;
+      }
+      
+      document.addEventListener('DOMContentLoaded', () => {
+        const savedApiId = localStorage.getItem('tg_api_id');
+        const savedApiHash = localStorage.getItem('tg_api_hash');
+        if (savedApiId) document.getElementById('apiId').value = savedApiId;
+        if (savedApiHash) document.getElementById('apiHash').value = savedApiHash;
+      });
+    })();
+
+    let tempSessionId = null;
+
+    function goBack() {
+      document.getElementById('step2').classList.add('hidden');
+      document.getElementById('step1').classList.remove('hidden');
+      document.getElementById('step1dot').classList.add('active');
+      document.getElementById('step2dot').classList.remove('active');
+      tempSessionId = null;
+    }
+
+    async function sendCode() {
+      const apiId   = parseInt(document.getElementById('apiId').value.trim());
+      const apiHash = document.getElementById('apiHash').value.trim();
+      const phone   = document.getElementById('phone').value.trim();
+
+      if (!apiId || !apiHash || !phone) {
+        showToast('Please fill in all fields.', 'warn');
+        return;
+      }
+
+      const btn = document.getElementById('sendCodeBtn');
+      setLoading(btn, true, 'Sending…');
+
+      try {
+        const data = await apiFetch('/auth/start', {
+          method: 'POST',
+          body: { api_id: apiId, api_hash: apiHash, phone },
+        });
+
+        tempSessionId = data.session_id;
+        localStorage.setItem('tg_api_id', apiId);
+        localStorage.setItem('tg_api_hash', apiHash);
+
+        // Transition to step 2
+        document.getElementById('step1').classList.add('hidden');
+        document.getElementById('step2').classList.remove('hidden');
+        document.getElementById('step1dot').classList.add('done');
+        document.getElementById('step2dot').classList.add('active');
+        document.getElementById('otpInfo').textContent =
+          `Enter the code sent to ${phone}`;
+
+        showToast('Code sent! Check your Telegram app.', 'success');
+        document.getElementById('otpCode').focus();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        setLoading(btn, false);
+      }
+    }
+
+    async function verifyCode() {
+      const code     = document.getElementById('otpCode').value.trim();
+      const password = document.getElementById('twoFaPassword').value || null;
+
+      if (!code) {
+        showToast('Please enter the verification code.', 'warn');
+        return;
+      }
+
+      const btn = document.getElementById('verifyBtn');
+      setLoading(btn, true, 'Verifying…');
+
+      try {
+        const data = await apiFetch('/auth/verify', {
+          method: 'POST',
+          body: { session_id: tempSessionId, code, password },
+        });
+
+        // Save session
+        setSession({
+          session_id: data.session_id,
+          user: data.user,
+        });
+
+        // Step 3
+        document.getElementById('step2').classList.add('hidden');
+        document.getElementById('step3').classList.remove('hidden');
+        document.getElementById('step2dot').classList.add('done');
+        document.getElementById('step3dot').classList.add('active');
+
+        showToast(`Welcome, ${data.user?.first_name || 'User'}! 🎉`, 'success');
+        setTimeout(() => { window.location.href = '/dashboard'; }, 1800);
+      } catch (err) {
+        if (err.message.toLowerCase().includes('password')) {
+          document.getElementById('passwordGroup').classList.remove('hidden');
+          showToast('Two-factor authentication required.', 'warn');
+        } else {
+          showToast(err.message, 'error');
+        }
+      } finally {
+        setLoading(btn, false);
+      }
+    }
+
+    // Allow Enter key to submit
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      if (!document.getElementById('step2').classList.contains('hidden')) {
+        verifyCode();
+      } else if (!document.getElementById('step1').classList.contains('hidden')) {
+        sendCode();
+      }
+    });
+  </script>
+</body>
+</html>
