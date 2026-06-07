@@ -273,9 +273,13 @@
           body: { session_id: tempSessionId, code, password },
         });
 
-        // Save session
+        // Save session with credentials for stateless container auto-healing
         setSession({
           session_id: data.session_id,
+          session_string: data.session_string,
+          api_id: data.api_id,
+          api_hash: data.api_hash,
+          phone: data.phone,
           user: data.user,
         });
 
